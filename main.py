@@ -15,11 +15,10 @@ import math
 
 trap_height = 0.4
 global topic
-1
+global image
 
 def grayscale(img):  # Grayscale
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
 def filter_colors(img):  # 색깔 필터링
 
     # Filter white pixels
@@ -41,16 +40,10 @@ def filter_colors(img):  # 색깔 필터링
     image2 = cv2.addWeighted(white_image, 1., yellow_image, 1., 0.)
 
     return image2
-
-
 def canny(img, low_threshold, high_threshold):  # Canny 알고리즘
     return cv2.Canny(img, low_threshold, high_threshold)
-
-
 def gaussian_blur(img, kernel_size):  # 가우시안 필터
     return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
-
-
 def region_of_interest(img, vertices, vertices_stopLine, color3=(255, 255, 255), color1=255):  # ROI 셋팅
 
     mask = np.zeros_like(img)  # mask = img와 같은 크기의 빈 이미지
@@ -74,7 +67,6 @@ def region_of_interest(img, vertices, vertices_stopLine, color3=(255, 255, 255),
     cv2.imshow("mask_Stop", mask_stopLine)
     cv2.imshow("ROI_imgae", ROI_image)
     return ROI_image
-
 # def region_of_interest_stopLine(img, vertices_stopLine, color3=(255, 255, 255), color1=255):  # ROI 셋팅
 #
 #     mask = np.zeros_like(img)  # mask = img와 같은 크기의 빈 이미지
@@ -93,8 +85,6 @@ def region_of_interest(img, vertices, vertices_stopLine, color3=(255, 255, 255),
 #     cv2.imshow("mask_stopLine", mask)
 #
 #     return ROI_image_stopLine
-
-
 def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):  # 허프 변환
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
@@ -104,8 +94,6 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):  # 허�
     draw_lines(line_img, lines)
 
     return line_img
-
-
 def draw_lines(img, lines, color=[255, 0, 0], thickness=10):
     # 기울기 찾고 계산
     # 선의 분류 (left , right)
@@ -237,35 +225,78 @@ def draw_lines(img, lines, color=[255, 0, 0], thickness=10):
         cv2.line(img, (right_x1, y1), (right_x2, y2), color, thickness)
     if draw_left:
         cv2.line(img, (left_x1, y1), (left_x2, y2), color, thickness)
-
-
-
 def weighted_img(img, initial_img, α=1, β=1., λ=0.):  # 두 이미지 operlap 하기
     return cv2.addWeighted(initial_img, α, img, β, λ)
+def LineTrace(img):
+    global image
+    image = img
 
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@main 이게 메인임 ㅇㅇ
+    height, width = image.shape[:2]  # 이미지 높이, 너비q
+    #("height:", height, "width:", width)
+    #print("height/2:", height/2, "width/2:", width/2)
+    filter_img = filter_colors(image)
+    gray_img = grayscale(filter_img)  # 흑백이미지로 변환
+    blur_img = gaussian_blur(gray_img, 3)  # Blur 효과
+    canny_img = canny(blur_img, 50, 170)  # Canny edge 알고리즘
+
+    vertices = np.array(
+        [[(50, height), (width / 2 - 45, height / 2 + 60), (width / 2 + 45, height / 2 + 60), (width - 50, height)]],
+        dtype=np.int32)
+    #print("width, height", vertices)
+    # vertices_stopLine ROI 설정
+    # filter_img_stopLine = filter_colors(image)
+    # gray_img_stopLine = grayscale(filter_img_stopLine)  # 흑백이미지로 변환
+    # blur_img_stopLine = gaussian_blur(gray_img_stopLine, 3)  # Blur 효과
+    # canny_img_stopLine = canny(blur_img_stopLine, 50, 170)  # Canny edge 알고리즘
+
+    vertices_stopLine = np.array(
+        [[(100, 400), (100, 300), (860, 300), (860, 400)]],
+        dtype=np.int32)
+    # ROI_img_stopLine = region_of_interest_stopLine(canny_img, vertices_stopLine)
+    # hough_img_stopLine = hough_lines(ROI_img_stopLine, 1, 1 * np.pi / 180, 30, 10, 20)
+    # result_stopLine = weighted_img(hough_img_stopLine, image)
+    # cv2.imshow("result_stopLine", result_stopLine)
+
+    ROI_img = region_of_interest(canny_img, vertices, vertices_stopLine)  # ROI 설정
+    #hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):  # 허프 변환
+    hough_img = hough_lines(ROI_img, 1, 1 * np.pi / 180, 30, 10, 20)  # 허프 변환
+    result = weighted_img(hough_img, image)  # 원본 이미지에 검출된 선 overlap
+    #result_ori_stop = weighted_img(result, result_stopLine)
+    # cv2.imshow("result_ori_stop", result_ori_stop)
+    cv2.imshow('result', result)  # 결과 이미지 출력
+    cv2.imshow("roi", ROI_img)
+    cv2.waitKey()
+
+
+    # Release
+    #cap.release()
+    cv2.destroyAllWindows()
 def on_connect(client, userdata, flag, rc):
-    print("Connected" + str(rc))
-    client.subscribe("drive", qos=0)
+    print("Connected")
     client.subscribe("image", qos=0)
-
+    global image
+    image = cv2.imread('Capture.JPG')
+    LineTrace(image)
 def on_message(client, userdata, msg):
-    print('messsage ', str(msg.payload))
-    
+    image = msg.payload
+    imageArray = np.frombuffer(image, dtype=np.uint8)
+    img =cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
+    LineTrace(img)
+    """cv2.imshow("img",img)
+    cv2.waitKey()
+    cv2.destroyWindow()"""
 
-
-
-
-
-ip = input("ip >> ")
+#ip = input("ip >> ")
 #ip = "localhost "
+
+
 
 client = mqtt.Client()
 #client.connect('broker.hivemq.com', 8000)
 client.on_connect = on_connect
 client.on_message = on_message
-client.connect(ip, 1883)
-client.loop_start()
+client.connect('localhost', 1883)
+client.loop_forever()
 
 
 #cap = cv2.VideoCapture('qwe.jpg')
@@ -273,7 +304,10 @@ client.loop_start()
 #cap = cv2.VideoCapture('solidWhiteRight.mp4')  # 동영상 불러오기
 #cap = cv2.VideoCapture('solidYellowLeft.mp4')  # 동영상 불러오기
 #cap = cv2.VideoCapture('비디오.mov')
-image = cv2.imread('Capture.JPG')
+
+
+
+
 
 """while (cap.isOpened()):
     ret, image = cap.read()
@@ -332,50 +366,6 @@ image = cv2.imread('Capture.JPG')
     #1time.sleep(0.1)
 
 """
-
-def LineTrace():
-
-
-    height, width = image.shape[:2]  # 이미지 높이, 너비q
-    #("height:", height, "width:", width)
-    #print("height/2:", height/2, "width/2:", width/2)
-    filter_img = filter_colors(image)
-    gray_img = grayscale(filter_img)  # 흑백이미지로 변환
-    blur_img = gaussian_blur(gray_img, 3)  # Blur 효과
-    canny_img = canny(blur_img, 50, 170)  # Canny edge 알고리즘
-
-    vertices = np.array(
-        [[(50, height), (width / 2 - 45, height / 2 + 60), (width / 2 + 45, height / 2 + 60), (width - 50, height)]],
-        dtype=np.int32)
-    #print("width, height", vertices)
-    # vertices_stopLine ROI 설정
-    # filter_img_stopLine = filter_colors(image)
-    # gray_img_stopLine = grayscale(filter_img_stopLine)  # 흑백이미지로 변환
-    # blur_img_stopLine = gaussian_blur(gray_img_stopLine, 3)  # Blur 효과
-    # canny_img_stopLine = canny(blur_img_stopLine, 50, 170)  # Canny edge 알고리즘
-
-    vertices_stopLine = np.array(
-        [[(100, 400), (100, 300), (860, 300), (860, 400)]],
-        dtype=np.int32)
-    # ROI_img_stopLine = region_of_interest_stopLine(canny_img, vertices_stopLine)
-    # hough_img_stopLine = hough_lines(ROI_img_stopLine, 1, 1 * np.pi / 180, 30, 10, 20)
-    # result_stopLine = weighted_img(hough_img_stopLine, image)
-    # cv2.imshow("result_stopLine", result_stopLine)
-
-    ROI_img = region_of_interest(canny_img, vertices, vertices_stopLine)  # ROI 설정
-    #hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):  # 허프 변환
-    hough_img = hough_lines(ROI_img, 1, 1 * np.pi / 180, 30, 10, 20)  # 허프 변환
-    result = weighted_img(hough_img, image)  # 원본 이미지에 검출된 선 overlap
-    #result_ori_stop = weighted_img(result, result_stopLine)
-    # cv2.imshow("result_ori_stop", result_ori_stop)
-    cv2.imshow('result', result)  # 결과 이미지 출력
-    cv2.imshow("roi", ROI_img)
-    cv2.waitKey()
-
-
-    # Release
-    #cap.release()
-    #cv2.destroyAllWindows()
 
 
 LineTrace()
