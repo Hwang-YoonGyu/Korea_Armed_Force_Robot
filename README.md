@@ -8,3 +8,5 @@
 MQTT를 통해 외부에 위치한 메인컴퓨터와 안드로이드태블릿(리모컨)과 통신합니다.
 
 
+![image](https://user-images.githubusercontent.com/73643657/230776921-f1a4fc7c-fad0-4e7a-88bb-50059e4d8291.png)
+![image](https://user-images.githubusercontent.com/73643657/230776961-5d922209-864e-4cb1-ab1a-2935ad16320c.png)
